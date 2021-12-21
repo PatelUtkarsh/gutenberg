@@ -62,12 +62,12 @@ const TOKEN_PATTERN = new RegExp( START_TOKEN + '[^]*' + END_TOKEN );
 const themejson = require( THEME_JSON_SCHEMA_FILE );
 
 /**
- * Convert properties to markup.
+ * Convert settings properties to markup.
  *
  * @param {Object} struct
  * @return {string} markup
  */
-const getPropertiesMarkup = ( struct ) => {
+const getSettingsPropertiesMarkup = ( struct ) => {
 	if ( ! ( 'properties' in struct ) ) {
 		return '';
 	}
@@ -92,21 +92,54 @@ const getPropertiesMarkup = ( struct ) => {
 };
 
 /**
+ * Convert style properties to markup.
+ *
+ * @param {Object} struct
+ * @return {string} markup
+ */
+const getStylePropertiesMarkup = ( struct ) => {
+	if ( ! ( 'properties' in struct ) ) {
+		return '';
+	}
+	const props = struct.properties;
+	const ks = keys( props );
+	if ( ks.length < 1 ) {
+		return '';
+	}
+
+	let markup = '| Property  | Type   |  Props  |\n';
+	markup += '| ---       | ---    |---   |\n';
+	ks.forEach( ( key ) => {
+		const ps =
+			props[ key ].type === 'object'
+				? keys( props[ key ].properties ).sort().join( ', ' )
+				: '';
+		markup += `| ${ key } | ${ props[ key ].type } | ${ ps } |\n`;
+	} );
+
+	return markup;
+};
+
+/**
  * Parses a section for description and properties and
  * returns a marked up version.
  *
  * @param {string} title
  * @param {Object} data
+ * @param {string} type settings|style
  * @return {string} markup
  */
-const getSectionMarkup = ( title, data ) => {
+const getSectionMarkup = ( title, data, type ) => {
+	const markupFn =
+		type === 'settings'
+			? getSettingsPropertiesMarkup
+			: getStylePropertiesMarkup;
 	return `
 ### ${ title }
 
 ${ data.description }
 
-${ getPropertiesMarkup( data ) }
-
+${ markupFn( data ) }
 ---
 `;
 };
@@ -115,14 +148,19 @@ let autogen = '';
 
 // Settings
 const settings = themejson.definitions.settingsProperties.properties;
-const sections = keys( settings );
+const settingSections = keys( settings );
 autogen += '## Settings' + '\n\n';
-sections.forEach( ( section ) => {
-	autogen += getSectionMarkup( section, settings[ section ] );
+settingSections.forEach( ( section ) => {
+	autogen += getSectionMarkup( section, settings[ section ], 'settings' );
 } );
 
 // Styles
+const styles = themejson.definitions.stylesProperties.properties;
+const styleSections = keys( styles );
 autogen += '## Styles' + '\n\n';
+styleSections.forEach( ( section ) => {
+	autogen += getSectionMarkup( section, styles[ section ], 'styles' );
+} );
 
 // Read existing file to wrap auto generated content.
 let docsContent = fs.readFileSync( THEME_JSON_REF_DOC, {
